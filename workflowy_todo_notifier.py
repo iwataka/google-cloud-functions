@@ -26,11 +26,27 @@ title2hashes = {
     ':walking: Things to do on the way back': ['#on-the-way-back-home'],
 }
 
+bullet_pattern = re.compile('\s*[-*+]\s*')
+
+hash2re = {}
 
 def lines_contains_hashes(lines, hashes):
     lines = [l.strip() for l in lines]
-    patterns = [re.compile('(\s|^)%s(\s|$)' % h) for h in hashes]
-    return [l for l in lines if l.startswith('-') and all(p.search(l) is not None for p in patterns)]
+    patterns = [create_hash_pattern(h) for h in hashes]
+    return [bullet_pattern.sub('', l) for l in lines if l.startswith('-') and all(p.search(l) for p in patterns)]
+
+
+def remove_hashes(line, hashes):
+    patterns = [create_hash_pattern(h) for h in hashes]
+    for pat in patterns:
+        line = pat.sub('', line)
+    return line
+
+
+def create_hash_pattern(hash_str):
+    if hash_str not in hash2re:
+        hash2re[hash_str] = re.compile('(\s|^)%s(\s|$)' % hash_str)
+    return hash2re[hash_str]
 
 
 def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
@@ -45,10 +61,10 @@ def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
     for title, hs in title2hashes.items():
         lines = lines_contains_hashes(workflowy_lines, hs)
         text_lines = ['%s (%s)' % (title, ','.join(['`%s`' % h for h in hs]))]
-        text_lines.extend(['- %s' % l for l in lines])
+        text_lines.extend(['- %s' % remove_hashes(l, hs) for l in lines])
         att = {
             'text': '\n'.join(text_lines),
-            'color': '#36a64f',
+            'color': '#36a64f' if lines else '',
         }
         attachments.append(att)
 
