@@ -9,6 +9,8 @@ webhook_url = os.getenv('WEBHOOK_URL')
 dropbox_token = os.getenv('DROPBOX_TOKEN')
 workflowy_file_path = os.getenv('DROPBOX_FILE_PATH')
 
+head_title = ':straight_ruler: Here is your workflowy statistics!'
+
 hashes = [
     ['#todo'],
     ['#todo', '#high'],
@@ -34,27 +36,33 @@ def lines_contains_hashes(lines, hashes):
 def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
     counts = [len(lines_contains_hashes(workflowy_lines, h)) for h in hashes]
     hash_strs = [' '.join(hs) for hs in hashes]
-    msg_lines = [':straight_ruler: Here is your workflowy statistics!']
+    msg_lines = [head_title]
     for hs, c in zip(hash_strs, counts):
         msg_lines.append('- `%s`: %d' % (hs, c))
+    msg = '\n'.join(msg_lines)
 
+    attachments = []
     for title, hs in title2hashes.items():
-        msg_lines.append(title)
         lines = lines_contains_hashes(workflowy_lines, hs)
-        if lines:
-            for line in lines:
-                msg_lines.append('- %s' % line)
+        text_lines = ['%s (%s)' % (title, ','.join(['`%s`' % h for h in hs]))]
+        text_lines.extend(['- %s' % l for l in lines])
+        att = {
+            'text': '\n'.join(text_lines),
+            'color': '#36a64f',
+        }
+        attachments.append(att)
 
-    send_msg_to_slack('\n'.join(msg_lines), webhook_url)
+    send_msg_to_slack(msg, attachments, webhook_url)
 
 
-def send_msg_to_slack(msg, webhook_url):
+def send_msg_to_slack(msg, attachments, webhook_url):
     requests.post(webhook_url, data=json.dumps({
         'text': msg,
         'username': 'Workflowy',
         'icon_emoji': ':hash:',
         'link_names': 1,
         'mrkdwn': True,
+        'attachments': attachments,
     }))
 
 
