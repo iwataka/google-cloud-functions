@@ -2,6 +2,7 @@ import os
 import dropbox
 import requests
 import json
+import re
 
 # sensitive constants
 webhook_url = os.getenv('WEBHOOK_URL')
@@ -15,18 +16,19 @@ hashes = [
     ['#waiting'],
     ['#pending'],
     ['#need-organized'],
-    ['#on-the-way-back-home'],
 ]
 
 title2hashes = {
     ':sunny: Daily activities': ['#daily'],
+    ':office: Things to do in the office': ['#work'],
     ':walking: Things to do on the way back': ['#on-the-way-back-home'],
 }
 
 
 def lines_contains_hashes(lines, hashes):
     lines = [l.strip() for l in lines]
-    return [l for l in lines if l.startswith('-') and all(h in l for h in hashes)]
+    patterns = [re.compile('(\s|^)%s(\s|$)' % h) for h in hashes]
+    return [l for l in lines if l.startswith('-') and all(p.search(l) is not None for p in patterns)]
 
 
 def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
@@ -37,13 +39,11 @@ def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
         msg_lines.append('- `%s`: %d' % (hs, c))
 
     for title, hs in title2hashes.items():
-        msg_lines.append('%s (%s)' % (title, ','.join(hs)))
+        msg_lines.append(title)
         lines = lines_contains_hashes(workflowy_lines, hs)
         if lines:
             for line in lines:
-                msg_lines.append('- `%s`' % line)
-        else:
-            msg_lines.append('- Nothing')
+                msg_lines.append('- %s' % line)
 
     send_msg_to_slack('\n'.join(msg_lines), webhook_url)
 
