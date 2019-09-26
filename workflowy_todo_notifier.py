@@ -26,14 +26,14 @@ title2hashes = {
     ':walking: Things to do on the way back': ['#on-the-way-back-home'],
 }
 
-bullet_pattern = re.compile('\s*[-*+]\s*')
+bullet_pattern = re.compile('^\s*[-*+]')
 
 hash2re = {}
 
 def lines_contains_hashes(lines, hashes):
     lines = [l.strip() for l in lines]
     patterns = [create_hash_pattern(h) for h in hashes]
-    return [bullet_pattern.sub('', l) for l in lines if l.startswith('-') and all(p.search(l) for p in patterns)]
+    return [bullet_pattern.sub('', l) for l in lines if bullet_pattern.search(l) and all(p.search(l) for p in patterns)]
 
 
 def remove_hashes(line, hashes):
