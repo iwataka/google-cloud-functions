@@ -31,9 +31,11 @@ url_pattern = re.compile('(\s|^)https?://\S+')
 hash2re = {}
 
 def lines_contains_hashes(lines, hashes, include_completed=False):
-    lines = [l.strip() for l in lines if include_completed or not l.startswith("[COMPLETE]")]
+    lines = (l.strip() for l in lines)
+    lines = (l for l in lines if include_completed or not l.startswith("[COMPLETE]"))
+    lines = (l for l in lines if not all(w.startswith('#') for w in l.split()))
     patterns = [create_hash_pattern(h) for h in hashes]
-    return [l for l in lines if all(p.search(l) for p in patterns)]
+    return (l for l in lines if all(p.search(l) for p in patterns))
 
 
 def remove_hashes(line, hashes):
@@ -62,9 +64,16 @@ def read_line(line, hashes):
     return main
 
 
+def iter_len(it):
+    count = 0
+    for _ in it:
+        count += 1
+    return count
+
+
 def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
-    counts = [len(lines_contains_hashes(workflowy_lines, h)) for h in hashes]
-    hash_strs = [' '.join(hs) for hs in hashes]
+    counts = (iter_len(lines_contains_hashes(workflowy_lines, h)) for h in hashes)
+    hash_strs = (' '.join(hs) for hs in hashes)
     msg_lines = [head_title]
     for hs, c in zip(hash_strs, counts):
         msg_lines.append('- `%s`: %d' % (hs, c))
@@ -77,7 +86,7 @@ def send_notification(workflowy_lines, hashes, title2hashes, webhook_url):
         text_lines.extend(['- %s' % read_line(l, hs) for l in lines])
         att = {
             'text': '\n'.join(text_lines),
-            'color': '#36a64f' if lines else '',
+            'color': '#36a64f' if len(text_lines) >= 2 else '',
         }
         attachments.append(att)
 
@@ -100,12 +109,7 @@ def download_workflowy_file_lines(dbx, file_path):
     if not wf_res.ok:
         raise Exception('Failed to download file from Dropbox')
     wf_res.encoding = 'utf-8'
-    lines = re.split('^\s*-\s', wf_res.text, 0, re.MULTILINE)[1:]
-    first_line = lines[0]
-    # If all of words in the first line is a hash tag, ignore it.
-    if all(w.startswith('#') for w in first_line.split()[1:]):
-        return lines[1:]
-    return lines
+    return re.split('^\s*-\s', wf_res.text, 0, re.MULTILINE)[1:]
 
 
 def notify(hashes = hashes, title2hashes = title2hashes):
