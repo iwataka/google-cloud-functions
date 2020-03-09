@@ -30,8 +30,8 @@ url_pattern = re.compile('(\s|^)https?://\S+')
 
 hash2re = {}
 
-def lines_contains_hashes(lines, hashes):
-    lines = [l.strip() for l in lines]
+def lines_contains_hashes(lines, hashes, include_completed=False):
+    lines = [l.strip() for l in lines if include_completed or not l.startswith("[COMPLETE]")]
     patterns = [create_hash_pattern(h) for h in hashes]
     return [l for l in lines if all(p.search(l) for p in patterns)]
 
